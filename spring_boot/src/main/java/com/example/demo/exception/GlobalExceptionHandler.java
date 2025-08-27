@@ -1,69 +1,99 @@
 package com.example.demo.exception;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.example.demo.dto.ErrorResponse;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-@RestControllerAdvice
+// Lớp này xử lý các exception toàn cục cho ứng dụng.
+// Nó bắt các exception được ném ra từ controller
+// và trả về định dạng lỗi, phản hồi nhất quán cho client.
+
+@ControllerAdvice
 public class GlobalExceptionHandler {
 
-    //Xử lý lỗi EmployeeNotFoundException
-    @ExceptionHandler(EmployeeNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleEmployeeNotFoundException(EmployeeNotFoundException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            ex.getMessage(),
-            HttpStatus.NOT_FOUND.value(),
-            LocalDateTime.now()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
-    }
-
-    //Xử lý lỗi DuplicateEmailException
-    @ExceptionHandler(DuplicateEmailException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateEmailException(DuplicateEmailException ex) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            ex.getMessage(),
-            HttpStatus.CONFLICT.value(),
-            LocalDateTime.now()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
-    }
-
-    //Xử lý lỗi Validation
+    // Xử lý lỗi validate dữ liệu
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
-        List<String> errors = ex.getBindingResult()
-            .getFieldErrors()
-            .stream()
-            .map(error -> error.getField() + ": " + error.getDefaultMessage())
-            .collect(Collectors.toList());
-            
+    public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex) {
+        List<String> errorMessages = new ArrayList<>();
+
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String errorMessage = error.getDefaultMessage();
+            String fieldName = ((FieldError) error).getField();
+            errorMessages.add(fieldName + ": " + errorMessage);
+
+        });
+
         ErrorResponse errorResponse = new ErrorResponse(
-            "Validation failed",
-            HttpStatus.BAD_REQUEST.value(),
-            LocalDateTime.now(),
-            errors
-        );
+                HttpStatus.BAD_REQUEST.value(),
+                errorMessages,
+                HttpStatus.BAD_REQUEST.getReasonPhrase());
+
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
-    //Xử lý lỗi chung
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-        ErrorResponse errorResponse = new ErrorResponse(
-            "An unexpected error occurred: " + ex.getMessage(),
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            LocalDateTime.now()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    // Xử lý lỗi truy cập bị từ chối
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("status", 403);
+        errorResponse.put("error", "Forbidden");
+        errorResponse.put("messages", List.of("Access denied: You don't have permission to access this resource"));
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
     }
 
+    // Xử lý lỗi xác thực (đăng nhập)
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthenticationException(AuthenticationException ex) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("status", 401);
+        errorResponse.put("error", "Unauthorized");
+        errorResponse.put("messages", List.of("Authentication failed: " + ex.getMessage()));
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+
+    // Xử lý lỗi không tìm thấy entity (dữ liệu)
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleEntityNotFoundException(EntityNotFoundException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(ex.getStatus().value(), List.of(ex.getMessage()),
+                ex.getStatus().getReasonPhrase());
+        return new ResponseEntity<>(errorResponse, ex.getStatus());
+    }
+
+    @ExceptionHandler(EntityDuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleEntityDuplicateException(EntityDuplicateException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(ex.getStatus().value(), List.of(ex.getMessage()),
+                ex.getStatus().getReasonPhrase());
+        return new ResponseEntity<>(errorResponse, ex.getStatus());
+    }
+
+    // Xử lý lỗi HTTP tuỳ chỉnh
+    @ExceptionHandler(HttpException.class)
+    public ResponseEntity<ErrorResponse> handleHttpException(HttpException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                ex.getStatus().value(),
+                List.of(ex.getMessage()),
+                ex.getStatus().getReasonPhrase()
+        );
+        return new ResponseEntity<>(errorResponse, ex.getStatus());
+    }
+
+    // Xử lý các lỗi chưa xác định khác (lỗi tổng quát)
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        ErrorResponse errorResponse = new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                List.of(ex.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
+        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

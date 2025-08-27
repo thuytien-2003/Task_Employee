@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, message, Card, Typography, Space } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, message, Card, Typography, Space, Pagination } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { employeeAPI } from '../api/employeeApi';
 import EmployeeList from '../components/EmployeeList';
 import EmployeeForm from '../components/EmployeeForm';
@@ -13,16 +13,17 @@ const EmployeePage: React.FC = () => {
   const queryClient = useQueryClient();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
-  // Query để lấy danh sách employees
+  // Query để lấy danh sách employees với pagination
   const {
-    data: employees = [],
+    data: employeeData,
     isLoading,
     error,
-    refetch,
   } = useQuery({
-    queryKey: ['employees'],
-    queryFn: employeeAPI.getAllEmployees,
+    queryKey: ['employees', currentPage],
+    queryFn: () => employeeAPI.getAllEmployees(currentPage - 1, pageSize),
   });
 
   // Mutation để tạo employee mới
@@ -96,6 +97,30 @@ const EmployeePage: React.FC = () => {
     setEditingEmployee(null);
   };
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Xử lý phím Enter để mở form thêm nhân viên
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Chỉ xử lý khi không có modal nào đang mở và không focus vào input nào
+      if (e.key === 'Enter' && !isModalVisible && 
+          document.activeElement?.tagName !== 'INPUT' && 
+          document.activeElement?.tagName !== 'TEXTAREA' &&
+          document.activeElement?.tagName !== 'BUTTON') {
+        e.preventDefault();
+        handleAdd();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isModalVisible]);
+
+  // Extract employees từ pagination response
+  const employees = employeeData?.content || [];
+
   if (error) {
     message.error('Lỗi khi tải dữ liệu nhân viên');
   }
@@ -115,14 +140,6 @@ const EmployeePage: React.FC = () => {
             >
               Thêm nhân viên
             </Button>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => refetch()}
-              size="large"
-              className="border-gray-300 hover:border-blue-500 hover:text-blue-500"
-            >
-              Làm mới
-            </Button>
           </Space>
         </div>
 
@@ -132,6 +149,20 @@ const EmployeePage: React.FC = () => {
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
+
+        <div className="mt-4 flex justify-center">
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={employeeData?.totalElements || 0}
+            showSizeChanger={false}
+            showQuickJumper
+            showTotal={(total, range) => 
+              `${range[0]}-${range[1]} của ${total} nhân viên`
+            }
+            onChange={handlePageChange}
+          />
+        </div>
 
         <EmployeeForm
           visible={isModalVisible}

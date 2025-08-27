@@ -3,6 +3,9 @@ package com.example.demo.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -10,8 +13,8 @@ import com.example.demo.dto.EmployeeCreateRequest;
 import com.example.demo.dto.EmployeeDTO;
 import com.example.demo.dto.EmployeeUpdateRequest;
 import com.example.demo.entities.Employee;
-import com.example.demo.exception.DuplicateEmailException;
-import com.example.demo.exception.EmployeeNotFoundException;
+import com.example.demo.exception.EntityDuplicateException;
+import com.example.demo.exception.EntityNotFoundException;
 import com.example.demo.repositories.EmployeeRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -27,7 +30,7 @@ public class EmployeeService {
     public EmployeeDTO  createEmployee(EmployeeCreateRequest request) {
         // Kiểm tra xem email đã tồn tại chưa
         if (employeeRepository.existsByEmail(request.getEmail())) {
-            throw new DuplicateEmailException("Email already exists");
+            throw new EntityDuplicateException("Email " + request.getEmail() + " đã tồn tại trong hệ thống");
         }
 
         Employee employee = new Employee();
@@ -43,25 +46,24 @@ public class EmployeeService {
         return convertDTO(savedEmployee);
     }
 
-    //Xem toàn bộ nhân viên
-    public List<EmployeeDTO> getAllEmployees() {
-        List<Employee> employees = employeeRepository.findAll();
-        return employees.stream()
-                .map(this::convertDTO)
-                .collect(Collectors.toList());
+    //Xem toàn bộ nhân viên (có phân trang)
+    public Page<EmployeeDTO> getAllEmployees(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Employee> employeePage = employeeRepository.findAll(pageable);
+        return employeePage.map(this::convertDTO);
     }
 
     //Xem thông tin nhân viên theo id
     public EmployeeDTO getEmployeeById(Long id) {
         Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy nhân viên với ID: " + id));
         return convertDTO(employee);
     }
 
     //Xóa nhân viên
     public void deleteEmployee(Long id) {
         if (!employeeRepository.existsById(id)) {
-            throw new EmployeeNotFoundException("Employee not found");
+            throw new EntityNotFoundException("Không tìm thấy nhân viên với ID: " + id);
         }
         employeeRepository.deleteById(id);
     }
@@ -69,7 +71,7 @@ public class EmployeeService {
     //Cập nhật thông tin nhân viên
     public EmployeeDTO updateEmployee(Long id, EmployeeUpdateRequest request){
         Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy nhân viên với ID: " + id));
 
         if(request.getFullName() != null) {
             employee.setFullName(request.getFullName());

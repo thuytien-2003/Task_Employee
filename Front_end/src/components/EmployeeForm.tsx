@@ -36,6 +36,13 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     onCancel();
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      handleOk();
+    }
+  };
+
   // Set form values when initialValues change
   React.useEffect(() => {
     if (visible) {
@@ -62,13 +69,14 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
       destroyOnClose
       className="!top-0"
     >
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{
-          active: true,
-        }}
-      >
+      <div onKeyDown={handleKeyDown}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{
+            active: true,
+          }}
+        >
         <Form.Item
           name="fullName"
           label="Họ và tên"
@@ -148,7 +156,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
         >
           <Switch checkedChildren="Hoạt động" unCheckedChildren="Không hoạt động" />
         </Form.Item>
-      </Form>
+        </Form>
+      </div>
     </Modal>
   );
 };

@@ -1,11 +1,11 @@
-import type { Employee, EmployeeCreateRequest, EmployeeUpdateRequest } from '../types/employee';
+import type { Employee, EmployeeCreateRequest, EmployeeUpdateRequest, PageResponse } from '../types/employee';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
 export const employeeAPI = {
-  // Lấy tất cả employees
-  getAllEmployees: async (): Promise<Employee[]> => {
-    const response = await fetch(`${API_BASE_URL}/employees`);
+  // Lấy tất cả employees với pagination
+  getAllEmployees: async (page: number = 0, size: number = 8): Promise<PageResponse<Employee>> => {
+    const response = await fetch(`${API_BASE_URL}/employees?page=${page}&size=${size}`);
     if (!response.ok) {
       throw new Error('Failed to fetch employees');
     }
