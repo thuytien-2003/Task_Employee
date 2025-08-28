@@ -29,6 +29,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
       dataIndex: 'fullName',
       key: 'fullName',
       width: 200,
+      render: (text: string) => <strong>{text}</strong>,
     },
     {
       title: 'Email',
@@ -83,13 +84,13 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 150,
+      width: 120,
       render: (date: string) => dayjs(date).format('DD/MM/YYYY HH:mm'),
     },
     {
-      title: 'Hành động',
+      title: '',
       key: 'actions',
-      width: 150,
+      width: '1%',
       render: (_: unknown, record: Employee) => (
         <Space>
           <Button
@@ -98,7 +99,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
             icon={<EditOutlined />}
             onClick={() => onEdit(record)}
           >
-            Sửa
+            
           </Button>
           <Popconfirm
             title="Xác nhận xóa"
@@ -113,7 +114,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({
               size="small"
               icon={<DeleteOutlined />}
             >
-              Xóa
+              
             </Button>
           </Popconfirm>
         </Space>
